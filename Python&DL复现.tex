@@ -58,7 +58,7 @@ An Update On Tiny-imagenet}
   任务。然而,ViT是在JFT-300M数据集(Sun等人,2017年)上预训练的,这是Google
   的内部数据集,包含了3亿张图片。因此,训练效率和数据可用性的问题就显而易见了。
   \textcolor{blue}{DeiT(Touvron等人,2020年)对此做出了回应,表明了缓解 Transformer 数据匮乏性
-  质的一种方法是通过严格的培训计划和知识提炼}。因此,可以使用ImageNet-21k(Ridnik等人,
+  质的一种方法是通过严格的培训计划和知识蒸馏(knowledge distillation)}。因此,可以使用ImageNet-21k(Ridnik等人,
   2021年)来训练视觉转换器,并在ImageNet-1k(Russakovsky等人,2014年)上进一
   步微调。像CaiT(Touvron等人,2021年)和Swin(Liu等人,2021b年)等后续的图像
   转换器,都紧密遵循了DeiT所制定的蓝图。
@@ -147,7 +147,7 @@ An Update On Tiny-imagenet}
       一个窗口应用于多头自注意力(MSA)和一个平移窗口应用于 MSA 已经被证明
       是有效的。
       \item DeiT 达到了可观的 87.29\% 的准确度,同时以大幅度的优势训练得
-      最快。数据增强的力量显而易见,因为它比 ViT-L 表现得更好,并且训练速度
+      最快。知识蒸馏(knowledge distillation)的力量显而易见,因为它比 ViT-L 表现得更好,并且训练速度
       以很大的优势领先。
       \item CaiT-M/36 模型可能会超过 DeiT 模型。
       尽管参数个数和 FLOPs 的数量较少,CaiT 的训练时间却是最长的。
@@ -166,7 +166,7 @@ An Update On Tiny-imagenet}
     ViT-L & 86.43 & \textbf{86.52} & 95.82 \\
     CaiT-S36 & 86.74 & 86.66 & 96.61 \\
     DeiT-B distilled & 87.29 & \textcolor{gray}{82.52} & 94.16 \\
-    Swin-L & 91.35 & 91.20 & 98.01 \\
+    Swin-L & 91.35 & 91.32 & 98.04 \\
     \hline
     \end{tabular}
     \caption{复现结果与论文对比}
@@ -183,9 +183,9 @@ An Update On Tiny-imagenet}
     \begin{tabular}{|c|c|c|c|}
     \hline
     DeiT-B training batch size & (paper)acc@1 & (my)acc@1 & (my)acc@5 \\ \hline
-    32 & & & \\ \hline
-    64 & 87.29 & & \\ \hline
-    128 & & & \\ \hline
+    32 & - & 81.79 & 93.84\\
+    64 & 87.29 & 82.15 & 94.02 \\
+    128 & - & 82.11 & 93.91 \\ \hline
     \end{tabular}
     \caption{复现结果与论文对比(续)}
     \end{table}    
@@ -251,7 +251,7 @@ An Update On Tiny-imagenet}
     $0.9$,包括有或没有nesterov动量两种情况。
   \end{itemize}
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{1.png}
+    \includegraphics[width=0.8\textwidth]{2.png}
   \end{center}
 \end{frame}
 
@@ -259,6 +259,14 @@ An Update On Tiny-imagenet}
   上图显示,SGD比AdamW收敛更快,这可能是因为作者为SGD使用了更高的学习率。另一方面,
   AdamW比SGD变化更大,这可能是由于AdamW的自适应性质。无论如何,就准确率而言,
   SGD均不如AdamW,但是nesterov动量的表现优于普通动量(91.21\%对比91.1\%)。
+\end{frame}
+
+\begin{frame}{4.1(\ast).复现结果}
+  复现了AdamW和SGD with nesterov momentum以及SGD without nesterov momentum
+  三种情况,acc@1随epoch的变化图表如下:
+  \begin{center}
+    \includegraphics[width=0.8\textwidth]{1.png}
+  \end{center}
 \end{frame}
 
 \begin{frame}{4.2.消融实验(Ablation Study)}
@@ -279,7 +287,7 @@ An Update On Tiny-imagenet}
   \begin{table}[h]
     \centering
     \caption{Comparison of the effects of various data augmentation and regularization techniques. RA stands for Rand-Augment.}
-    \begin{tabular}{|l|r|}
+    \begin{tabular}{|l|c|}
     \hline
     \textbf{Change} & \textbf{Accuracy} \\
     \hline
@@ -296,7 +304,31 @@ An Update On Tiny-imagenet}
     Add Model EMA & 90.83 \\
     \hline
     \end{tabular}
-    \end{table}    
+  \end{table}    
+\end{frame}
+
+\begin{frame}{4.2(\ast).复现消融实验}
+  \begin{table}[h]
+    \centering
+    \caption{Comparison of the effects of various data augmentation and regularization techniques. RA stands for Rand-Augment.}
+    \begin{tabular}{|l|c|c|}
+    \hline
+    \textbf{Change} & \textbf{(my)Accuracy} & \textbf{(paper)Accuracy} \\
+    \hline
+    Default(no RandAugment) & 91.32 & 91.35\\
+    Add RandAugment & 91.01 & 91.34\\
+    Remove Rand-Erasing & 91.03 & 91.28 \\
+    Add Simple Random Crop & - & 91.26\\
+    Remove Stochastic Depth & - & 91.25\\
+    Remove Label Smoothing & 91.20 & 91.25\\
+    Replace RA with AutoAugment & - & 91.25\\
+    Remove Mixup & 91.14 & 91.11\\
+    Add Random Resized Crop & - & 91.06\\
+    Remove CutMix & 91.28 & 91.04\\
+    Add Model EMA & - & 90.83\\
+    \hline
+    \end{tabular}
+  \end{table}  
 \end{frame}
 
 \begin{frame}{4.3.消融实验的结果(Ablation Results)}
@@ -311,7 +343,7 @@ An Update On Tiny-imagenet}
 \end{frame}
 
 \begin{frame}{4.3.消融实验的结果(续)}
-  作者给出了最优的训练设置配置如下:
+  作者给出了默认的训练设置配置如下:
   \begin{itemize}
     \item AdamW,学习率为$10^{-3}$,权重衰减为0.05
     \item 30 epochs, 余弦衰减, and batch size=128
